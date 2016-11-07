@@ -1,0 +1,101 @@
+---
+title: "Practical Machine Learning Course Project"
+author: "Jason Brownlee"
+date: "11/6/2016"
+output: html_document
+---
+
+# Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, the goal is to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset). 
+
+
+# Load Libraries
+
+```{r, echo=TRUE, message=FALSE, warning=FALSE}
+library(caret)
+library(randomForest)
+```
+
+# Download and Load Data
+
+```{r, echo=TRUE}
+# Set the seed for reproducibility 
+set.seed(2345)
+
+trainURL <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+testURL <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+train_df <- read.csv(url(trainURL), na.strings=c("NA","#DIV/0!",""))
+test_df <- read.csv(url(testURL), na.strings=c("NA","#DIV/0!",""))
+nzv <- nearZeroVar(train_df,saveMetrics=TRUE)
+```
+
+# Data Preparation
+
+### Cleanup the Training Data; Removing NA columns, etc
+```{r, echo=TRUE}
+train_df <- train_df[train_df$new_window == "no",]
+train_df <- Filter(function(x)!all(is.na(x)), train_df)
+#remove non-measurement columns
+train_df <- train_df[, -(1:7)]
+
+# Remove the same columns from the test data set:
+test_df <- Filter(function(x)!all(is.na(x)), test_df)
+test_df <- test_df[, -(1:7)]
+
+# Check the near zero variance of the remaining columns
+nzv <- nearZeroVar(train_df, saveMetrics=TRUE)
+nzv
+```
+
+### Cross-Validation
+We'll use cross-validation to create a training data set and a testing data set from the training data set provided.  We'll then use the testing data set provided as the final validation data set.
+```{r, echo=TRUE}
+inTrain <- createDataPartition(y=train_df$classe, p=0.7, list=FALSE)
+training_df <- train_df[inTrain, ]; 
+testing_df <- train_df[-inTrain, ]
+```
+
+
+
+# Modeling
+### Train and Test a Radom Forest Model
+```{r, echo=TRUE}
+#Run the model on the training data created from the cross-validation
+model_rf <- randomForest(classe~.,data=training_df, mtry=9, ntree=500)
+
+# Take a look at the results
+model_rf
+
+# Test the model on the testing data created from the cross-validation
+pred <- predict(model_rf, testing_df)
+
+# Check the Results
+confusionMatrix(pred, testing_df$classe)
+```
+
+### Conclusion
+As can be seen in the Confusion Matrix, the Random Forest model performed very well.  The accuracy is .9957.
+
+
+# Predictions
+Now we'll use the model to predict the classes on the validation data (the testing data provided for the project).
+
+```{r, echo=TRUE}
+pred_val <- predict(model_rf, test_df)
+pred_val
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
